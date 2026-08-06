@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -race -cover ./...
+
+      - name: Build the CLI binary
+        run: go build -o /tmp/carrystate ./cmd/carrystate
+
+      - name: Smoke — pack/verify/unpack round-trip
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/ci/.claude/projects/-tmp-ci-app
+          printf '%s\n' '{"type":"user","message":"hi"}' '{"type":"assistant","message":"hello"}' \
+            > /tmp/ci/.claude/projects/-tmp-ci-app/s.jsonl
+          printf '# Global\nUse Go.\n' > /tmp/ci/.claude/CLAUDE.md
+          printf '{"mcpServers":{"fs":{"command":"npx","args":["-y","x"]}}}' > /tmp/ci/.claude.json
+          /tmp/carrystate pack   --harness claudecode --state-dir /tmp/ci/.claude --out /tmp/ci/p.csb
+          /tmp/carrystate verify --bundle /tmp/ci/p.csb
+          /tmp/carrystate unpack --harness codex --in /tmp/ci/p.csb --state-dir /tmp/ci/.codex
+          diff /tmp/ci/.claude/projects/-tmp-ci-app/s.jsonl /tmp/ci/.codex/sessions/-tmp-ci-app/s.jsonl

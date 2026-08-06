@@ -1,0 +1,67 @@
+version: 2
+
+builds:
+  - id: carrystate
+    main: ./cmd/carrystate
+    binary: carrystate
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      # windows/arm64 is not a first-class target for airgapped ops teams;
+      # keep the matrix lean.
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w -X main.Version={{.Version}}
+
+archives:
+  - id_default: true
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - README.en.md
+      - SPEC.md
+      - LICENSE
+      - CHANGELOG.md
+      - examples/happy-path.md
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  use: git
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+  groups:
+    - title: "New"
+      regexp: "^feat:"
+      order: 0
+    - title: "Fixes"
+      regexp: "^fix:"
+      order: 1
+    - title: "Other"
+      order: 999
+
+release:
+  draft: false
+  prerelease: auto
+  name_template: "{{ .Tag }}"

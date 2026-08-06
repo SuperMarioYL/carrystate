@@ -1,0 +1,35 @@
+# build scratch
+BUILD_SETUP_NEXT_STEPS.md
+PUBLISH_BLOCKED.md
+GIT_AUTHOR_DRIFT.md
+DRIFT_REPORT.md
+HYPE_DRIFT.md
+SCOPE_DRIFT.md
+STAGE_*_BLOCKED.md
+.spawn.*
+.builder_*
+.build_metadata*
+.stage_*
+
+# agent session/memory scratch (never ship a contributor's state)
+.claude/
+CLAUDE.md
+.codex/
+
+# go build artifacts
+/bin/
+/dist/
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# editor
+.idea/
+.vscode/
+*.swp
+*.swo
