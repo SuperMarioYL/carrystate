@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "name": "carrystate",
+  "github": "https://github.com/SuperMarioYL/carrystate",
+  "host": "carrystate.lei6393.com",
+  "lang": { "primary": "zh", "toggle": true },
+  "accent": ["#10a37f"],
+  "hero": {
+    "eyebrow": { "zh": "信创 · 离线 · 数据不出内网", "en": "On-prem · Offline · No data egress" },
+    "headline": {
+      "zh": "换 coding agent，\n不丢它学到的 context",
+      "en": "Switch coding agents.\nKeep the context they've learned."
+    },
+    "sub": {
+      "zh": "把旧 agent 的会话、记忆和工具配置打包成一个可校验的包，导入新 agent，全程不出内网。",
+      "en": "Packs your old agent's sessions, memories and tool config into a verifiable bundle, then imports it into the new agent — without anything leaving your intranet."
+    },
+    "command": "carrystate pack --harness claudecode --state-dir ~/.claude --out project.csb",
+    "cta": { "zh": "开始使用", "en": "Get started" },
+    "ctaGithub": { "zh": "在 GitHub 查看", "en": "View on GitHub" }
+  },
+  "advantages": [
+    {
+      "title": { "zh": "换 agent，记忆不丢", "en": "Switch agents, keep your memory" },
+      "body": {
+        "zh": "新 agent 默认拿不到旧 agent 的会话、记忆和工具配置——每次切换都是冷启动。CarryState 把这些一起打包，导入新 agent 直接接着用。",
+        "en": "The new agent starts without the old one's sessions, memories or tool config — every switch is a cold start. CarryState packs all of it and imports it into the new agent, ready to continue."
+      },
+      "chips": [
+        "› 会话 + 记忆 + 工具配置一起迁",
+        "› 导入即可接着用"
+      ]
+    },
+    {
+      "title": { "zh": "全程不出内网", "en": "Nothing leaves your intranet" },
+      "body": {
+        "zh": "没有云、没有账号、不需要联网。整个迁移在两台内网机器之间完成，bundle 走 USB 或内部仓库——契合数据不出境的合规要求。",
+        "en": "No cloud, no account, no network. The whole move happens between two intranet machines; the bundle travels by USB or an internal repo — meeting your data-sovereignty rules."
+      },
+      "chips": [
+        "› 离线打包 · 离线导入",
+        "› 无云 · 无账号 · 无联网"
+      ]
+    },
+    {
+      "title": { "zh": "改一个字节，立刻发现", "en": "One changed byte, instantly caught" },
+      "body": {
+        "zh": "每个 bundle 都带完整性校验——导入前先验，被篡改或损坏的 bundle 直接拒收。校验指纹可以直接进合规审计记录。",
+        "en": "Every bundle carries an integrity check — verify before importing, and reject any bundle that was tampered with or corrupted. The fingerprint drops straight into your compliance audit trail."
+      },
+      "chips": [
+        "› 导入前先验完整性",
+        "› 指纹可进审计记录"
+      ]
+    },
+    {
+      "title": { "zh": "导入即可用，字节无损", "en": "Imports ready-to-use, byte-for-byte" },
+      "body": {
+        "zh": "不同 agent 的状态格式并不一样。CarryState 做格式翻译，导入时落到新 agent 的原生布局——不是简单复制目录，而是导入即生效。",
+        "en": "Different agents store state in different layouts. CarryState translates the format so the import lands in the new agent's native layout — not a raw directory copy, but something that works the moment it lands."
+      },
+      "chips": [
+        "› 落到新 agent 原生布局",
+        "› 不是复制目录，是导入即生效"
+      ]
+    }
+  ],
+  "scene": {
+    "kind": "hub-nodes",
+    "nodes": ["Claude Code", "Codex"]
+  },
+  "cta": {
+    "headline": {
+      "zh": "让你的 agent state 跟着你走",
+      "en": "Make your agent state travel with you"
+    },
+    "sub": {
+      "zh": "开源、MIT、零依赖。拷进内网即可使用。",
+      "en": "Open source, MIT, zero dependencies. Copy it into your intranet and go."
+    },
+    "button": { "zh": "在 GitHub 上开始", "en": "Get started on GitHub" }
+  },
+  "footer": {
+    "tag": {
+      "zh": "信创内网的 agent state porter · 开源 · MIT",
+      "en": "The agent state porter for airgapped intranets · Open source · MIT"
+    }
+  }
+}
