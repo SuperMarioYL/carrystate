@@ -1,89 +1,215 @@
 {
-  "schema": 1,
-  "name": "carrystate",
+  "schema": 3,
+  "name": "CarryState",
   "github": "https://github.com/SuperMarioYL/carrystate",
   "host": "carrystate.lei6393.com",
-  "lang": { "primary": "zh", "toggle": true },
-  "accent": ["#10a37f"],
+  "palette": "auto",
+  "lang": {
+    "primary": "en",
+    "toggle": true
+  },
+  "meta": {
+    "visual_style": "neon-particle",
+    "demo_source": "docs/demo-results.json"
+  },
   "hero": {
-    "eyebrow": { "zh": "信创 · 离线 · 数据不出内网", "en": "On-prem · Offline · No data egress" },
     "headline": {
-      "zh": "换 coding agent，\n不丢它学到的 context",
-      "en": "Switch coding agents.\nKeep the context they've learned."
+      "en": "Carry local agent state between workspaces",
+      "zh": "把本地 Agent 状态迁移到新目录"
     },
     "sub": {
-      "zh": "把旧 agent 的会话、记忆和工具配置打包成一个可校验的包，导入新 agent，全程不出内网。",
-      "en": "Packs your old agent's sessions, memories and tool config into a verifiable bundle, then imports it into the new agent — without anything leaving your intranet."
+      "en": "CarryState packs Claude Code session files, Markdown memories and MCP configuration into a .csb bundle, verifies its checksums, and writes a Codex-oriented directory layout.",
+      "zh": "CarryState 将 Claude Code 会话文件、Markdown 记忆和 MCP 配置打包为 .csb 文件，校验内容后写入面向 Codex 的目录布局。"
     },
-    "command": "carrystate pack --harness claudecode --state-dir ~/.claude --out project.csb",
-    "cta": { "zh": "开始使用", "en": "Get started" },
-    "ctaGithub": { "zh": "在 GitHub 查看", "en": "View on GitHub" }
+    "href": "#quickstart"
   },
   "advantages": [
     {
-      "title": { "zh": "换 agent，记忆不丢", "en": "Switch agents, keep your memory" },
-      "body": {
-        "zh": "新 agent 默认拿不到旧 agent 的会话、记忆和工具配置——每次切换都是冷启动。CarryState 把这些一起打包，导入新 agent 直接接着用。",
-        "en": "The new agent starts without the old one's sessions, memories or tool config — every switch is a cold start. CarryState packs all of it and imports it into the new agent, ready to continue."
+      "title": {
+        "en": "One transferable bundle",
+        "zh": "一个迁移包"
       },
-      "chips": [
-        "› 会话 + 记忆 + 工具配置一起迁",
-        "› 导入即可接着用"
-      ]
+      "body": {
+        "en": "Move .csb files through an internal file share or removable media.",
+        "zh": "可通过内部文件共享或移动介质传递 .csb 文件。"
+      }
     },
     {
-      "title": { "zh": "全程不出内网", "en": "Nothing leaves your intranet" },
-      "body": {
-        "zh": "没有云、没有账号、不需要联网。整个迁移在两台内网机器之间完成，bundle 走 USB 或内部仓库——契合数据不出境的合规要求。",
-        "en": "No cloud, no account, no network. The whole move happens between two intranet machines; the bundle travels by USB or an internal repo — meeting your data-sovereignty rules."
+      "title": {
+        "en": "Check before writing",
+        "zh": "写入前检查"
       },
-      "chips": [
-        "› 离线打包 · 离线导入",
-        "› 无云 · 无账号 · 无联网"
-      ]
+      "body": {
+        "en": "Unpack recomputes checksums and refuses a mismatching bundle.",
+        "zh": "解包时重新计算校验值，拒绝内容不匹配的包。"
+      }
     },
     {
-      "title": { "zh": "改一个字节，立刻发现", "en": "One changed byte, instantly caught" },
-      "body": {
-        "zh": "每个 bundle 都带完整性校验——导入前先验，被篡改或损坏的 bundle 直接拒收。校验指纹可以直接进合规审计记录。",
-        "en": "Every bundle carries an integrity check — verify before importing, and reject any bundle that was tampered with or corrupted. The fingerprint drops straight into your compliance audit trail."
+      "title": {
+        "en": "Keep transcript bytes",
+        "zh": "保留会话原文"
       },
-      "chips": [
-        "› 导入前先验完整性",
-        "› 指纹可进审计记录"
-      ]
+      "body": {
+        "en": "The exporter stores raw JSONL and the importer writes that content back.",
+        "zh": "导出器保存原始 JSONL，导入器写回对应内容。"
+      }
+    }
+  ],
+  "demo": {
+    "title": {
+      "en": "Run it on a complete example",
+      "zh": "运行完整示例"
+    },
+    "note": {
+      "en": "The example creates synthetic source files in a temporary directory and runs the actual pack, verify and unpack commands. It never reads your ~/.claude or writes your ~/.codex.",
+      "zh": "示例在临时目录创建合成输入，调用实际的 pack、verify 和 unpack 命令。不会读取个人 ~/.claude 或写入 ~/.codex。"
+    },
+    "source": "https://github.com/SuperMarioYL/carrystate/blob/main/docs/demo-results.json",
+    "steps": [
+      {
+        "label": "Recorded run",
+        "body": "Synthetic session, memory and MCP config packed, verified and unpacked in a temporary directory. File migration only.",
+        "command": "python3 examples/presentation_demo.py",
+        "output": "packed example.csb → claudecode\n  sessions:    1\n  memories:   1\n  mcp servers: 1\n  merkle root: 65c311e365e4501004838cfe803ab49c5184881fef25648e85386d41efa77f5a\n  fingerprint: 65c311e365e4\nbundle:   example.csb\nsource:   claudecode\nspec:     0.1\npacked:   2026-09-08 02:10:03 UTC\nentries:  1 sessions, 1 memories, 1 mcp servers\nmerkle:   65c311e365e4501004838cfe803ab49c5184881fef25648e85386d41efa77f5a\nresult:   4 matched, 0 mismatched\n  ✓ all entries match — bundle is intact, round-trip is lossless\nunpacked example.csb → codex\n  state dir:      target\n  sessions written:  1\n  memories written: 1\n  mcp servers:       1\nSession bytes preserved: True\nWritten files: AGENTS.md, mcp.json, sessions/demo/session.jsonl\nScope: file migration only; no Codex process or MCP server started.",
+        "image": "/assets/presentation/demo-0-light.svg",
+        "imageDark": "/assets/presentation/demo-0-dark.svg"
+      }
+    ]
+  },
+  "quickstart": {
+    "title": {
+      "en": "Try it locally",
+      "zh": "本地上手"
+    },
+    "body": {
+      "en": "The example creates synthetic source files in a temporary directory and runs the actual pack, verify and unpack commands. It never reads your ~/.claude or writes your ~/.codex.",
+      "zh": "示例在临时目录创建合成输入，调用实际的 pack、verify 和 unpack 命令。不会读取个人 ~/.claude 或写入 ~/.codex。"
+    },
+    "steps": [
+      {
+        "title": {
+          "en": "Install from source",
+          "zh": "从源码安装"
+        },
+        "code": "git clone https://github.com/SuperMarioYL/carrystate.git\ncd carrystate\ngo build -o bin/carrystate ./cmd/carrystate"
+      },
+      {
+        "title": {
+          "en": "Run the included example",
+          "zh": "运行随仓示例"
+        },
+        "code": "python3 examples/presentation_demo.py"
+      }
+    ]
+  },
+  "limitations": [
+    {
+      "en": "Checksum agreement establishes bundle consistency, not signer identity, runtime compatibility or behavior equivalence.",
+      "zh": "校验值一致仅证明包内容一致，不能证明签名身份、运行时兼容性或行为等价。"
     },
     {
-      "title": { "zh": "导入即可用，字节无损", "en": "Imports ready-to-use, byte-for-byte" },
-      "body": {
-        "zh": "不同 agent 的状态格式并不一样。CarryState 做格式翻译，导入时落到新 agent 的原生布局——不是简单复制目录，而是导入即生效。",
-        "en": "Different agents store state in different layouts. CarryState translates the format so the import lands in the new agent's native layout — not a raw directory copy, but something that works the moment it lands."
-      },
-      "chips": [
-        "› 落到新 agent 原生布局",
-        "› 不是复制目录，是导入即生效"
-      ]
+      "en": "The Codex layout is an adapter convention. This demo does not launch Codex or verify that a current Codex release resumes the imported session.",
+      "zh": "Codex 布局是适配器约定。本示例没有启动 Codex，也没有验证当前 Codex 版本能恢复导入会话。"
+    },
+    {
+      "en": "Reverse migration and semantic memory reconciliation are not implemented.",
+      "zh": "反向迁移和记忆语义协调尚未实现。"
     }
   ],
   "scene": {
-    "kind": "hub-nodes",
-    "nodes": ["Claude Code", "Codex"]
+    "kind": "neon-graph",
+    "fallback": "/assets/presentation/scene-dark.svg",
+    "fallbackLight": "/assets/presentation/scene-light.svg"
   },
-  "cta": {
-    "headline": {
-      "zh": "让你的 agent state 跟着你走",
-      "en": "Make your agent state travel with you"
+  "story": {
+    "intro": {
+      "title": {
+        "en": "A concrete task",
+        "zh": "从实际任务出发"
+      },
+      "body": {
+        "en": "Moving a local agent setup involves several kinds of files with different locations and formats. A bundle keeps the transcript, instructions and tool configuration together, with an inspectable manifest and a check before unpacking.",
+        "zh": "迁移本地 Agent 环境需要处理分散在不同位置、格式不同的文件。统一的包把会话文本、指令和工具配置放在一起，并提供可查看的清单和解包前校验。"
+      }
     },
-    "sub": {
-      "zh": "开源、MIT、零依赖。拷进内网即可使用。",
-      "en": "Open source, MIT, zero dependencies. Copy it into your intranet and go."
-    },
-    "button": { "zh": "在 GitHub 上开始", "en": "Get started on GitHub" }
-  },
-  "footer": {
-    "tag": {
-      "zh": "信创内网的 agent state porter · 开源 · MIT",
-      "en": "The agent state porter for airgapped intranets · Open source · MIT"
-    }
+    "sections": [
+      {
+        "title": {
+          "en": "Follow the operation",
+          "zh": "处理过程"
+        },
+        "body": {
+          "en": "The Claude Code adapter reads projects/<project>/*.jsonl, global and discoverable project CLAUDE.md files, and MCP server entries. The bundle module addresses entries by SHA-256 and computes a Merkle root. The Codex adapter writes sessions, merges Markdown with provenance headers and serializes mcp.json.",
+          "zh": "Claude Code 适配器读取 projects/<project>/*.jsonl、全局及可定位的项目 CLAUDE.md 和 MCP 条目。bundle 模块以 SHA-256 标识条目并计算 Merkle 根。Codex 适配器写出会话、为合并的 Markdown 添加来源注释，并生成 mcp.json。"
+        },
+        "image": {
+          "light": "/assets/presentation/process-light.svg",
+          "dark": "/assets/presentation/process-dark.svg",
+          "alt": {
+            "en": "Follow the operation",
+            "zh": "处理过程"
+          }
+        }
+      },
+      {
+        "title": {
+          "en": "Export, verify, then write a target layout",
+          "zh": "导出、校验、写入目标目录"
+        },
+        "body": {
+          "en": "The Claude Code adapter reads projects/<project>/*.jsonl, global and discoverable project CLAUDE.md files, and MCP server entries. The bundle module addresses entries by SHA-256 and computes a Merkle root. The Codex adapter writes sessions, merges Markdown with provenance headers and serializes mcp.json.",
+          "zh": "Claude Code 适配器读取 projects/<project>/*.jsonl、全局及可定位的项目 CLAUDE.md 和 MCP 条目。bundle 模块以 SHA-256 标识条目并计算 Merkle 根。Codex 适配器写出会话、为合并的 Markdown 添加来源注释，并生成 mcp.json。"
+        },
+        "image": {
+          "light": "/assets/presentation/architecture-light.svg",
+          "dark": "/assets/presentation/architecture-dark.svg",
+          "alt": {
+            "en": "Export, verify, then write a target layout",
+            "zh": "导出、校验、写入目标目录"
+          }
+        }
+      },
+      {
+        "title": {
+          "en": "Connect the pieces",
+          "zh": "输入与输出"
+        },
+        "body": {
+          "en": "CarryState handles file packaging and deterministic translation. The destination runtime owns whether it recognizes and resumes those files. The supported direction is Claude Code export → Codex-oriented import; the reverse methods return unsupported-direction errors.",
+          "zh": "CarryState 负责文件打包和确定性转换；目标运行时负责识别和恢复这些文件。当前方向是 Claude Code 导出到面向 Codex 的布局，反向接口会返回不支持的方向错误。"
+        },
+        "image": {
+          "light": "/assets/presentation/integrations-light.svg",
+          "dark": "/assets/presentation/integrations-dark.svg",
+          "alt": {
+            "en": "Connect the pieces",
+            "zh": "输入与输出"
+          }
+        }
+      }
+    ],
+    "details": [
+      {
+        "title": {
+          "en": "Configuration",
+          "zh": "配置"
+        },
+        "body": {
+          "en": "All paths are explicit CLI arguments. The Claude Code project-directory decoding is best effort because hyphens can be ambiguous. Global Markdown is concatenated with source comments; MCP configuration is serialized as mcp.json. Bundles may contain sensitive session content and MCP environment values, so choose their destination as carefully as the original state files.",
+          "zh": "路径均通过 CLI 参数指定。Claude Code 项目目录中的连字符可能产生歧义，因此路径还原是尽力处理。全局 Markdown 通过来源注释拼接；MCP 配置序列化为 mcp.json。包可能包含敏感会话和 MCP 环境变量，应按原始状态文件的要求选择存放位置。"
+        }
+      },
+      {
+        "title": {
+          "en": "Further use",
+          "zh": "进一步使用"
+        },
+        "body": {
+          "en": "Replace ./source-state with a source directory you intend to export. Use --project to restrict one encoded project subdirectory, or --mcp-config to select an explicit MCP JSON file. Import into a new directory first: the importer writes target files and is not a conflict-aware merge tool. See SPEC.md and examples/happy-path.md for the file contract.",
+          "zh": "将 ./source-state 替换为准备导出的目录。--project 可限定一个编码后的项目子目录，--mcp-config 可指定 MCP JSON 文件。先导入新目录：导入器会写入目标文件，并不提供冲突感知合并。文件约定见 SPEC.md 和 examples/happy-path.md。"
+        },
+        "code": "./bin/carrystate pack --harness claudecode --state-dir ./source-state --out project.csb\n./bin/carrystate verify --bundle project.csb\n./bin/carrystate unpack --harness codex --in project.csb --state-dir ./imported-state --dry-run\n./bin/carrystate unpack --harness codex --in project.csb --state-dir ./imported-state"
+      }
+    ]
   }
 }

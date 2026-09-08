@@ -1,0 +1,82 @@
+{
+  "name": "CarryState",
+  "tagline": "Carry local agent state between workspaces",
+  "architecture": {
+    "title": "Export, verify, then write a target layout",
+    "nodes": [
+      {
+        "title": "Claude Code files",
+        "detail": "sessions / CLAUDE.md / MCP"
+      },
+      {
+        "title": "Bundle",
+        "detail": "manifest and entry digests"
+      },
+      {
+        "title": "Verification",
+        "detail": "recomputed Merkle root"
+      },
+      {
+        "title": "Codex adapter",
+        "detail": "sessions / AGENTS.md / mcp.json"
+      }
+    ],
+    "edges": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        3
+      ]
+    ]
+  },
+  "process": {
+    "title": "From input to a useful result",
+    "steps": [
+      {
+        "title": "Create input",
+        "detail": "1 session, 1 memory, 1 MCP entry"
+      },
+      {
+        "title": "Pack and verify",
+        "detail": "check bundle contents"
+      },
+      {
+        "title": "Unpack",
+        "detail": "write isolated target files"
+      },
+      {
+        "title": "Compare",
+        "detail": "session bytes preserved"
+      }
+    ],
+    "result": "One synthetic session survives pack → verify → unpack byte-for-byte."
+  },
+  "integrations": {
+    "title": "Supported input and output routes",
+    "items": [
+      {
+        "title": "Claude Code",
+        "detail": "export local file state"
+      },
+      {
+        "title": "CSB archive",
+        "detail": "portable checksummed bundle"
+      },
+      {
+        "title": "Codex layout",
+        "detail": "write adapter-defined files"
+      },
+      {
+        "title": "YAML sidecar",
+        "detail": "human-readable manifest"
+      }
+    ]
+  }
+}

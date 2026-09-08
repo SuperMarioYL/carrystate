@@ -1,197 +1,143 @@
-<div align="right"><sub><a href="./README.en.md">English</a>&nbsp;&nbsp;⇄&nbsp;&nbsp;<b>简体中文</b></sub></div>
+[English](./README.en.md) · [Website](https://carrystate.lei6393.com) · [GitHub](https://github.com/SuperMarioYL/carrystate)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./assets/hero-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="./assets/hero-light.svg">
-  <img src="./assets/hero-light.svg" width="880" alt="CarryState — pack agent state across harnesses, airgapped and verifiable">
+  <source media="(max-width: 600px) and (prefers-color-scheme: dark)" srcset="./assets/presentation/hero-mobile-dark.svg">
+  <source media="(max-width: 600px)" srcset="./assets/presentation/hero-mobile-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/presentation/hero-dark.svg">
+  <img src="./assets/presentation/hero-light.svg" width="960" alt="Hero diagram">
 </picture>
 
-<p align="center"><sub>面向信创 / 数据不出境企业的本地 Agent harness 状态迁移工具——把 Claude Code 等 harness 的 sessions、memories、MCP config 打包成可校验的迁移 bundle，导入新 harness 全程不出内网。</sub></p>
+# CarryState
 
-<p align="center">
-  <a href="./LICENSE"><img alt="license" src="https://img.shields.io/github/license/SuperMarioYL/carrystate?color=blue"></a>
-  <img alt="release" src="https://img.shields.io/github/v/release/SuperMarioYL/carrystate">
-  <img alt="ci" src="https://img.shields.io/github/actions/workflow/status/SuperMarioYL/carrystate/ci.yml?branch=main&label=ci">
-  <img alt="Go" src="https://img.shields.io/badge/Go-1.24-00ADD8?logo=go&logoColor=white">
-  <img alt="Agent-ready" src="https://img.shields.io/badge/Agent-ready-5E5CE6">
-  <img alt="信创 airgap" src="https://img.shields.io/badge/%E4%BF%A1%E5%88%9B-airgap-10A37F">
-</p>
+**把本地 Agent 状态迁移到新目录**
 
----
+CarryState 将 Claude Code 会话文件、Markdown 记忆和 MCP 配置打包为 .csb 文件，校验内容后写入面向 Codex 的目录布局。
 
-**切 harness = 冷启动，丢学到的 context；CarryState 把 agent state 打包带走，全程不出内网。**
+## 为什么需要它
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./assets/atlas-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="./assets/atlas-light.svg">
-  <img src="./assets/atlas-light.svg" width="880" alt="架构：Claude Code pack → .csb Bundle → Codex unpack，merkle 校验">
-</picture>
+迁移本地 Agent 环境需要处理分散在不同位置、格式不同的文件。统一的包把会话文本、指令和工具配置放在一起，并提供可查看的清单和解包前校验。
 
-## 目录
-
-- [为什么需要](#为什么需要)
-- [架构](#架构)
-- [安装](#安装)
-- [快速开始](#快速开始)
-- [用法](#用法)
-- [Demo](#demo)
-- [对比 cc-switch](#对比-cc-switch)
-- [付费 / 企业版](#付费--企业版)
-- [路线图](#路线图)
-- [贡献](#贡献)
-
-## 为什么需要
-
-信创 / airgapped 企业 ops 团队在内网-only 机器上、在「数据不出境」合规要求下切换或升级本地 coding-agent harness（Claude Code → Codex → OpenCode）时，面临冷启动：新 harness 不拥有前一个 harness 的 sessions、学到的 memories、MCP server config，每次切换都丢掉积累的 context。[Hoplite (YC S26)](https://hoplite.sh) 明确把 "we port over your local setup — sessions, memories, MCP servers" 做成了付费产品，但它的目的地是自己的云——信创内网企业结构性地用不了它。[farion1231/cc-switch](https://github.com/farion1231/cc-switch)（124k 星）切换 launcher 但**不迁任何 state**，每次切换都是冷启动。
-
-CarryState 补的就是这个缺口：一个本地、harness-agnostic 的 state 互换 bundle——sessions + memories + MCP config 打包、schema 翻译、导入新 harness，**全程不出内网**。它对标 Hoplite（Yc S26）的云端 state-porting，把方向留在本地；与 cc-switch 互补——cc-switch 切 harness，CarryState 迁它留下的 state。Agent state 在 harness 间可迁移这一需求已被 [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent) 这类被 cc-switch 列为切换目标的多 harness 生态验证。
+- **一个迁移包** — 可通过内部文件共享或移动介质传递 .csb 文件。
+- **写入前检查** — 解包时重新计算校验值，拒绝内容不匹配的包。
+- **保留会话原文** — 导出器保存原始 JSONL，导入器写回对应内容。
 
 ## 架构
 
-一个静态 Go 二进制 `carrystate`，三个子命令，四个内部包——没有 daemon、没有网络、没有微服务、没有 K8s。这是 Airgap 的**结构保证**，不是配置选项。
+<picture>
+  <source media="(max-width: 600px) and (prefers-color-scheme: dark)" srcset="./assets/presentation/architecture-mobile-dark.svg">
+  <source media="(max-width: 600px)" srcset="./assets/presentation/architecture-mobile-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/presentation/architecture-dark.svg">
+  <img src="./assets/presentation/architecture-light.svg" width="960" alt="Architecture diagram">
+</picture>
 
-- `cmd/carrystate`（cobra: pack / unpack / verify）
-- `internal/bundle`——`.csb` 读写 + merkle root
-- `internal/harness`——adapter 注册表 + claudecode / codex
-- `internal/checksum`——每 entry sha256
-- `internal/translate`——native ↔ bundle schema 翻译
+Claude Code 适配器读取 projects/<project>/*.jsonl、全局及可定位的项目 CLAUDE.md 和 MCP 条目。bundle 模块以 SHA-256 标识条目并计算 Merkle 根。Codex 适配器写出会话、为合并的 Markdown 添加来源注释，并生成 mcp.json。
 
-唯一 I/O 是读源 harness 的 state dir、写目标 harness 的 state dir。`verify` 重跑 translator 的确定性子集并比对 checksum——v0.1 不上 LLM。
+| 组件 | 职责 |
+| --- | --- |
+| `Claude Code files` | sessions / CLAUDE.md / MCP |
+| `Bundle` | manifest and entry digests |
+| `Verification` | recomputed Merkle root |
+| `Codex adapter` | sessions / AGENTS.md / mcp.json |
 
-## 安装
+## 安装与快速上手
+
+需要 Go 1.24+；完整示例使用 Python 3，无需安装 Agent CLI。
 
 ```bash
-go install github.com/SuperMarioYL/carrystate@latest
+git clone https://github.com/SuperMarioYL/carrystate.git
+cd carrystate
+go build -o bin/carrystate ./cmd/carrystate
 ```
 
-或者从 [Releases](https://github.com/SuperMarioYL/carrystate/releases/latest) 拿一个预编译二进制（linux/darwin/windows × amd64/arm64），USB 拷进内网即可——零依赖、零联网。
-
-## 快速开始
+示例在临时目录创建合成输入，调用实际的 pack、verify 和 unpack 命令。不会读取个人 ~/.claude 或写入 ~/.codex。
 
 ```bash
-# 1. pack：~/.claude → project.csb（sessions + memories + MCP，merkle 校验）
-carrystate pack --harness claudecode --state-dir ~/.claude --out project.csb
-
-# 2. verify：重算每个 sha256 + merkle root（绿勾 = 可发运）
-carrystate verify --bundle project.csb
-
-# 3. unpack：project.csb → ~/.codex（Codex 原生布局，无损）
-carrystate unpack --harness codex --in project.csb --state-dir ~/.codex
+python3 examples/presentation_demo.py
 ```
 
-<details><summary>样例输出</summary>
+## 实际运行示例
 
-```
-$ carrystate pack --harness claudecode --state-dir ~/.claude --out project.csb
-packed project.csb → claudecode
+<picture>
+  <source media="(max-width: 600px) and (prefers-color-scheme: dark)" srcset="./assets/presentation/process-mobile-dark.svg">
+  <source media="(max-width: 600px)" srcset="./assets/presentation/process-mobile-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/presentation/process-dark.svg">
+  <img src="./assets/presentation/process-light.svg" width="960" alt="Process diagram">
+</picture>
+
+One synthetic session survives pack → verify → unpack byte-for-byte.
+
+```text
+packed example.csb → claudecode
   sessions:    1
   memories:   1
   mcp servers: 1
-  merkle root: 9542d49c31b322ed5eaa54e713f61a6dab6e8bc50270e96720baac75b612a95d
-  fingerprint: 9542d49c31b3
-
-$ carrystate verify --bundle project.csb
-bundle:   project.csb
+  merkle root: 65c311e365e4501004838cfe803ab49c5184881fef25648e85386d41efa77f5a
+  fingerprint: 65c311e365e4
+bundle:   example.csb
 source:   claudecode
 spec:     0.1
+packed:   2026-09-08 02:10:03 UTC
 entries:  1 sessions, 1 memories, 1 mcp servers
-merkle:   9542d49c31b322ed5eaa54e713f61a6dab6e8bc50270e96720baac75b612a95d
+merkle:   65c311e365e4501004838cfe803ab49c5184881fef25648e85386d41efa77f5a
 result:   4 matched, 0 mismatched
   ✓ all entries match — bundle is intact, round-trip is lossless
+unpacked example.csb → codex
+  state dir:      target
+  sessions written:  1
+  memories written: 1
+  mcp servers:       1
+Session bytes preserved: True
+Written files: AGENTS.md, mcp.json, sessions/demo/session.jsonl
+Scope: file migration only; no Codex process or MCP server started.
 ```
 
-</details>
+完整命令与输出保存在 [docs/demo-results.json](./docs/demo-results.json). 输入和复现代码均随仓提供。
+
+![已有终端录制](./assets/demo.gif)
+
+保留已有录制供参考；上方文字示例给出当前可复现的操作。
 
 ## 用法
 
-<h2><img src="https://api.iconify.design/tabler/terminal-2.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> 用法</h2>
-
-**只迁一个项目**（大型 `~/.claude` 时按项目过滤）：
+将 ./source-state 替换为准备导出的目录。--project 可限定一个编码后的项目子目录，--mcp-config 可指定 MCP JSON 文件。先导入新目录：导入器会写入目标文件，并不提供冲突感知合并。文件约定见 SPEC.md 和 examples/happy-path.md。
 
 ```bash
-carrystate pack --harness claudecode --state-dir ~/.claude \
-  --project -Users-me-work-myapp --out myapp.csb
+./bin/carrystate pack --harness claudecode --state-dir ./source-state --out project.csb
+./bin/carrystate verify --bundle project.csb
+./bin/carrystate unpack --harness codex --in project.csb --state-dir ./imported-state --dry-run
+./bin/carrystate unpack --harness codex --in project.csb --state-dir ./imported-state
 ```
 
-**跨主机迁移**（信创内网典型路径，bundle 走 USB / 内部 artifact repo，从不出内网）：
+## 配置
 
-```bash
-# 源主机
-carrystate pack --harness claudecode --state-dir ~/.claude --out project.csb
-sha256sum project.csb >> 合规审计.log          # 记录 bundle 指纹
+路径均通过 CLI 参数指定。Claude Code 项目目录中的连字符可能产生歧义，因此路径还原是尽力处理。全局 Markdown 通过来源注释拼接；MCP 配置序列化为 mcp.json。包可能包含敏感会话和 MCP 环境变量，应按原始状态文件的要求选择存放位置。
 
-# 目标主机（USB / 内部 repo 拷贝 project.csb 过来）
-carrystate verify --bundle project.csb         # 先验完整性，拒绝篡改 bundle
-carrystate unpack --harness codex --in project.csb --state-dir ~/.codex
-```
+## 集成与职责分工
 
-**干跑检查 bundle 内容**（不写盘）：
+<picture>
+  <source media="(max-width: 600px) and (prefers-color-scheme: dark)" srcset="./assets/presentation/integrations-mobile-dark.svg">
+  <source media="(max-width: 600px)" srcset="./assets/presentation/integrations-mobile-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/presentation/integrations-dark.svg">
+  <img src="./assets/presentation/integrations-light.svg" width="960" alt="Integrations diagram">
+</picture>
 
-```bash
-carrystate unpack --harness codex --in project.csb --state-dir ~/.codex --dry-run
-```
+CarryState 负责文件打包和确定性转换；目标运行时负责识别和恢复这些文件。当前方向是 Claude Code 导出到面向 Codex 的布局，反向接口会返回不支持的方向错误。
 
-完整 schema 与 entry 类型见 [SPEC.md](./SPEC.md)。更多示例见 [examples/happy-path.md](./examples/happy-path.md)。
+| 路径 | 已实现职责 |
+| --- | --- |
+| Claude Code | export local file state |
+| CSB archive | portable checksummed bundle |
+| Codex layout | write adapter-defined files |
+| YAML sidecar | human-readable manifest |
 
-## Demo
+## 限制与后续方向
 
-<h2><img src="https://api.iconify.design/tabler/photo.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> Demo</h2>
+- 校验值一致仅证明包内容一致，不能证明签名身份、运行时兼容性或行为等价。
+- Codex 布局是适配器约定。本示例没有启动 Codex，也没有验证当前 Codex 版本能恢复导入会话。
+- 反向迁移和记忆语义协调尚未实现。
 
-90 秒看到完整 round-trip：`pack → verify → unpack`，session 字节级无损。`docs/demo.tape` 是可复现的 [vhs](https://github.com/charmbracelet/vhs) 脚本，`.github/workflows/demo.yml` 在 CI 里重渲染。
+已实现 Claude Code 导出、CSB 校验、验证、dry-run 和目标文件导入。后续方向是当前运行时兼容验证、反向迁移和更多适配器。本仓库没有实现托管服务或企业许可系统。
 
-![demo](assets/demo.gif)
+## 许可与贡献
 
-## 对比 cc-switch
-
-CarryState 与 [farion1231/cc-switch](https://github.com/farion1231/cc-switch) 互补而非竞争——它切 harness，CarryState 迁它留下的 state。诚实标注：cc-switch 在桌面 GUI 与受众规模上明显更强。
-
-| 维度 | CarryState | cc-switch |
-|---|:---:|:---:|
-| 切换 harness | ✓（pack→unpack 迁 state） | ✓（切 launcher） |
-| 迁移 sessions/memories/MCP | ✓ | ✗（每 switch 冷启动） |
-| 跨 harness schema 翻译 | ✓（.csb 互换格式） | ✗ |
-| 全程不出内网 | ✓ | ✓ |
-| merkle 完整性校验 | ✓（合规审计可验证） | ✗ |
-| 桌面 GUI | ✗（CLI only，v0.1） | ✓ |
-| 受众规模 | 早期 | 124k 星 |
-
-## 付费 / 企业版
-
-<h2><img src="https://api.iconify.design/tabler/building-factory-2.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> 付费 / 企业版</h2>
-
-**OSS core 永远免费且功能完整**——v0.1 没有任何 paywall 功能。商业化路径是**同一 OSS 二进制**外包一层信创 on-prem 企业 license（¥50–200k/站/年），买的是合规与服务，不是功能门禁：
-
-- **信创 SLA**：4 小时响应、对公合同、发票（fapiao）——信创企业不能用 Stripe/信用卡，v0.1 手动对公开票流足矣。
-- **合规审计 log bundle**：每个 `.csb` 的 merkle root + manifest YAML 可直接进审计 trail，license 版提供打包的审计导出。
-- **定制 harness adapter**：某个国产 harness 不在 v0.1 两个适配器内？license 含一次性定制开发。
-- **现场 packing workshop**：design-partner 试点 90 天免费 → GA 转 ¥80k/站/年（单站 ≤50 席，SLA + audit）；含定制适配器至 ¥200k/站/年。
-
-最小成交路径（此人群无信用卡）：周末 ops 访谈 → design-partner LOI（意向书）→ 90 天免费试点 + 现场 workshop → 试点末签对公合同 + 30% 预付款（~¥24k）。**License 交付**：同一 `carrystate` 二进制 + 离线 merkle-verifiable 签名 license 文件——契合 airgap。
-
-联系：在 [Issues](https://github.com/SuperMarioYL/carrystate/issues) 开一个「企业 license 询价」标题的 issue 即可。
-
-## 路线图
-
-<h2><img src="https://api.iconify.design/tabler/map-2.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> 路线图</h2>
-
-- [x] **m1** — `carrystate pack --harness claudecode` 从真实 `~/.claude` 打出 merkle-校验的 `.csb`
-- [x] **m2** — `carrystate unpack --harness codex` 写 Codex 原生布局 + `verify` 行为等价性通过
-- [x] **m3** — `SPEC.md` + 双语 README + asciinema/vhs round-trip demo + `go install` 一键
-- [ ] **v0.2** — OpenCode / Grok Build / Hermes Agent 适配器（bundle 格式已对称，加 adapter 即可）
-- [ ] **v0.2** — 反向方向（Codex → Claude Code）
-- [ ] **v0.2** — LLM-based memory merge / dedup / 语义对齐（v0.1 只做无损确定性翻译）
-- [ ] **未来** — harness state dir 自动发现、社区 per-harness adapter 征集
-
-## 贡献
-
-<h2><img src="https://api.iconify.design/tabler/clipboard-list.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> 贡献</h2>
-
-Issue 与 PR 都欢迎。新增 harness adapter 请参考 `internal/harness/adapter.go` 的 `Adapter` 接口与 `SPEC.md` 的 schema 约定；bundle 格式对称，加 adapter 不需要改 spec。提交前 `go test ./...` 须通过。
-
-## Share this
-
-```
-CarryState — 信创内网 agent state porter。把 Claude Code 的 sessions/memories/MCP 打包成 merkle-可校验的 .csb，导入 Codex 全程不出内网。Hoplite (YC S26) 把 state 迁往云；CarryState 留在本地。https://github.com/SuperMarioYL/carrystate
-```
-
-<p align="center"><sub><a href="./LICENSE">MIT</a> © 2026 SuperMarioYL</sub></p>
+许可见 [LICENSE](./LICENSE). 反馈问题时请提供最小输入、执行命令和实际输出。

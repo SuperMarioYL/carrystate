@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "source_revision": "0d4020e0cf621032bf549a8016141dc97937e681",
+  "scope": "Synthetic session, memory and MCP config packed, verified and unpacked in a temporary directory. File migration only.",
+  "steps": [
+    {
+      "label": "Recorded run",
+      "body": "Synthetic session, memory and MCP config packed, verified and unpacked in a temporary directory. File migration only.",
+      "command": "python3 examples/presentation_demo.py",
+      "output": "packed example.csb → claudecode\n  sessions:    1\n  memories:   1\n  mcp servers: 1\n  merkle root: 65c311e365e4501004838cfe803ab49c5184881fef25648e85386d41efa77f5a\n  fingerprint: 65c311e365e4\nbundle:   example.csb\nsource:   claudecode\nspec:     0.1\npacked:   2026-09-08 02:10:03 UTC\nentries:  1 sessions, 1 memories, 1 mcp servers\nmerkle:   65c311e365e4501004838cfe803ab49c5184881fef25648e85386d41efa77f5a\nresult:   4 matched, 0 mismatched\n  ✓ all entries match — bundle is intact, round-trip is lossless\nunpacked example.csb → codex\n  state dir:      target\n  sessions written:  1\n  memories written: 1\n  mcp servers:       1\nSession bytes preserved: True\nWritten files: AGENTS.md, mcp.json, sessions/demo/session.jsonl\nScope: file migration only; no Codex process or MCP server started."
+    }
+  ]
+}

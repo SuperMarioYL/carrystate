@@ -1,0 +1,38 @@
+{
+  "mode": "auto",
+  "id": "e65690-e77b6a-f6ace5-af2c5b36b565",
+  "identity": "https://github.com/supermarioyl/carrystate",
+  "primary": "#e65690",
+  "secondary": "#e77b6a",
+  "highlight": "#f6ace5",
+  "dark": {
+    "bg": "#0a070f",
+    "panel": "#13101a",
+    "code": "#140d17",
+    "ink": "#fdeefa",
+    "muted": "#b29cb3",
+    "line": "#3a182b",
+    "primary": "#e65690",
+    "secondary": "#e77b6a",
+    "highlight": "#f6ace5",
+    "accent": "#e65690",
+    "buttonStart": "#c54a7c",
+    "buttonEnd": "#b25f52",
+    "buttonText": "#ffffff"
+  },
+  "light": {
+    "bg": "#fef9fb",
+    "panel": "#fef7f9",
+    "code": "#fdf3f7",
+    "ink": "#271624",
+    "muted": "#725e76",
+    "line": "#f7cbdd",
+    "primary": "#bc4676",
+    "secondary": "#aa5a4e",
+    "highlight": "#8e6384",
+    "accent": "#bc4676",
+    "buttonStart": "#c54a7c",
+    "buttonEnd": "#b25f52",
+    "buttonText": "#ffffff"
+  }
+}
