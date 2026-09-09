@@ -201,3 +201,95 @@ func TestMergeMemoriesFiltersByScope(t *testing.T) {
 	// exercise it through the adapter to avoid an import cycle in tests.)
 	_ = bundle.New // keep the bundle import meaningful for the test file
 }
+
+// --- v0.2.0 fix regression tests -----------------------------------------------
+
+// A project whose scoped memory is in the bundle but that has no sessions must
+// still get its AGENTS.md on unpack (v0.1.0 wrote per-project AGENTS.md only
+// inside the sessions loop, silently dropping such memories).
+func TestImportWritesProjectMemoryWithoutSessions(t *testing.T) {
+	b := bundle.New("claudecode", "codex", "test")
+	b.AppendMemory(bundle.MemoryEntry{
+		ID:      "project:-tmp-only:CLAUDE.md",
+		Project: "-tmp-only",
+		Source:  "/tmp/only/CLAUDE.md",
+		Format:  "markdown",
+		Content: "# Only memory\n",
+	})
+	b.Finalize()
+
+	target := t.TempDir()
+	r, err := (&Codex{}).Import(b, target)
+	require.NoError(t, err)
+	assert.Equal(t, 1, r.MemoriesWritten)
+
+	data, err := os.ReadFile(filepath.Join(target, "sessions", "-tmp-only", "AGENTS.md"))
+	require.NoError(t, err, "memory-only project must still get its AGENTS.md")
+	assert.Contains(t, string(data), "# Only memory")
+	assert.Contains(t, string(data), "<!-- from /tmp/only/CLAUDE.md -->")
+}
+
+// A user-scope and a project-scope server whose prefix-stripped names collide
+// must not silently overwrite each other in mcp.json (v0.1.0 kept whichever
+// serialized last and still reported both as written).
+func TestImportMcpNameCollisionUserScopeWins(t *testing.T) {
+	b := bundle.New("claudecode", "codex", "test")
+	// export order: project-scope servers are appended during the projects
+	// walk, user-scope servers afterwards
+	b.AppendMcpServer(bundle.McpServer{
+		Name: "-tmp-proj/shared", Transport: "stdio",
+		Command: "project-server", Scope: "project",
+	})
+	b.AppendMcpServer(bundle.McpServer{
+		Name: "shared", Transport: "stdio",
+		Command: "user-server", Scope: "user",
+	})
+	b.Finalize()
+
+	target := t.TempDir()
+	r, err := (&Codex{}).Import(b, target)
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, r.McpServersWritten, "count reflects what lands in mcp.json")
+	require.Len(t, r.Warnings, 1, "the dropped server must be warned about")
+	assert.Contains(t, r.Warnings[0], "skipped")
+
+	data, err := os.ReadFile(filepath.Join(target, "mcp.json"))
+	require.NoError(t, err)
+	var doc struct {
+		McpServers map[string]struct {
+			Command string `json:"command"`
+		} `json:"mcpServers"`
+	}
+	require.NoError(t, json.Unmarshal(data, &doc))
+	require.Len(t, doc.McpServers, 1)
+	assert.Equal(t, "user-server", doc.McpServers["shared"].Command,
+		"user-scope server wins the colliding name")
+}
+
+// Import must refuse a bundle whose schema ids this adapter was not built for
+// (the v0.1.0 adapter never called SchemaCompatibleForImport).
+func TestImportRefusesForeignSchema(t *testing.T) {
+	b := bundle.New("claudecode", "codex", "test")
+	b.Manifest.SchemaMap.Sessions = "csb-session-jsonl-v2"
+	b.Finalize()
+
+	_, err := (&Codex{}).Import(b, t.TempDir())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "schema incompatible")
+}
+
+// manifest.tool_version must come from ExportOptions.ToolVersion (pack passes
+// the CLI Version const), not a hardcoded string that drifts from the tag.
+func TestExportToolVersionFromOptions(t *testing.T) {
+	stateDir, _, _ := writeFixture(t)
+	c := &ClaudeCode{}
+
+	b, err := c.Export(ExportOptions{StateDir: stateDir, ToolVersion: "carrystate-9.9.9-test"})
+	require.NoError(t, err)
+	assert.Equal(t, "carrystate-9.9.9-test", b.Manifest.ToolVersion)
+
+	b2, err := c.Export(ExportOptions{StateDir: stateDir})
+	require.NoError(t, err)
+	assert.Equal(t, "dev", b2.Manifest.ToolVersion)
+}

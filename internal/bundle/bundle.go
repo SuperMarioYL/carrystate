@@ -25,16 +25,26 @@ const SpecVersion = "0.1"
 // Extension is the canonical CarryState Bundle filename suffix.
 const Extension = ".csb"
 
+// Schema ids carried in the manifest schema_map. An adapter that wants to
+// import a bundle without a translator upgrade must declare support for these
+// exact ids (see SchemaCompatibleForImport) — consts, not literals, so the
+// import-side check can never drift from what New() writes.
+const (
+	SessionSchemaID = "csb-session-jsonl-v1"
+	MemorySchemaID  = "csb-memory-markdown-v1"
+	McpSchemaID     = "csb-mcp-servers-v1"
+)
+
 // Manifest describes the bundle: which harness it came from, where it is going,
 // when it was packed, and which schema versions each entry kind uses.
 type Manifest struct {
-	SpecVersion   string         `json:"spec_version" yaml:"spec_version"`
-	SourceHarness string         `json:"source_harness" yaml:"source_harness"`
-	TargetHarness string         `json:"target_harness,omitempty" yaml:"target_harness,omitempty"`
-	CreatedAt     time.Time      `json:"created_at" yaml:"created_at"`
-	SchemaMap     SchemaMap      `json:"schema_map" yaml:"schema_map"`
-	EntryCount    EntryCount     `json:"entry_count" yaml:"entry_count"`
-	ToolVersion   string         `json:"tool_version,omitempty" yaml:"tool_version,omitempty"`
+	SpecVersion   string     `json:"spec_version" yaml:"spec_version"`
+	SourceHarness string     `json:"source_harness" yaml:"source_harness"`
+	TargetHarness string     `json:"target_harness,omitempty" yaml:"target_harness,omitempty"`
+	CreatedAt     time.Time  `json:"created_at" yaml:"created_at"`
+	SchemaMap     SchemaMap  `json:"schema_map" yaml:"schema_map"`
+	EntryCount    EntryCount `json:"entry_count" yaml:"entry_count"`
+	ToolVersion   string     `json:"tool_version,omitempty" yaml:"tool_version,omitempty"`
 }
 
 // SchemaMap records the per-kind schema id used by this bundle, so a target
@@ -63,12 +73,12 @@ type EntryCount struct {
 // way to keep `verify` byte-identical to `pack`.
 type SessionEntry struct {
 	ID        string `json:"id"`         // session UUID (filename stem)
-	Project   string `json:"project"`   // project dir name under projects/
-	Source    string `json:"source"`    // original file path
+	Project   string `json:"project"`    // project dir name under projects/
+	Source    string `json:"source"`     // original file path
 	Format    string `json:"format"`     // "jsonl"
-	Content   string `json:"content"`   // raw session file content (JSONL)
+	Content   string `json:"content"`    // raw session file content (JSONL)
 	LineCount int    `json:"line_count"` // number of JSONL lines
-	SHA256    string `json:"sha256"`    // content checksum
+	SHA256    string `json:"sha256"`     // content checksum
 }
 
 // MemoryEntry is one normalized agent memory / instruction file. For Claude
@@ -99,8 +109,8 @@ type McpServer struct {
 
 // McpConfig is the normalized MCP slice of a bundle.
 type McpConfig struct {
-	Servers  []McpServer    `json:"servers"`
-	Roots    []string       `json:"roots,omitempty"`
+	Servers  []McpServer     `json:"servers"`
+	Roots    []string        `json:"roots,omitempty"`
 	Sampling json.RawMessage `json:"sampling,omitempty"`
 }
 
@@ -113,7 +123,7 @@ type Checksums struct {
 
 // Bundle is the top-level .csb document.
 type Bundle struct {
-	Manifest  Manifest      `json:"manifest"`
+	Manifest  Manifest       `json:"manifest"`
 	Sessions  []SessionEntry `json:"sessions"`
 	Memories  []MemoryEntry  `json:"memories"`
 	MCP       McpConfig      `json:"mcp"`
@@ -130,9 +140,9 @@ func New(source, target, toolVersion string) *Bundle {
 			TargetHarness: target,
 			CreatedAt:     time.Now().UTC().Truncate(time.Second),
 			SchemaMap: SchemaMap{
-				Sessions: "csb-session-jsonl-v1",
-				Memories: "csb-memory-markdown-v1",
-				MCP:      "csb-mcp-servers-v1",
+				Sessions: SessionSchemaID,
+				Memories: MemorySchemaID,
+				MCP:      McpSchemaID,
 			},
 			ToolVersion: toolVersion,
 		},
@@ -246,7 +256,7 @@ func (b *Bundle) Verify() *VerifyReport {
 // VerifyReport is the result of Bundle.Verify — a list of matched and mismatched
 // entry checksums plus a single Pass boolean.
 type VerifyReport struct {
-	Matched   []string
+	Matched    []string
 	Mismatched []Mismatch
 }
 

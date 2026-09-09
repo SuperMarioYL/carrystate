@@ -73,7 +73,7 @@ be empty, but the key exists). A verifier rejects a bundle missing any key.
     "mcp":      "csb-mcp-servers-v1"
   },
   "entry_count": { "sessions": 1, "memories": 1, "mcp_servers": 1 },
-  "tool_version": "carrystate-0.1.0"  // the binary that packed it
+  "tool_version": "carrystate-0.2.0"  // the binary that packed it
 }
 ```
 

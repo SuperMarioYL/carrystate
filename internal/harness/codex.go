@@ -7,7 +7,7 @@
 // revision):
 //   - sessions: <state-dir>/sessions/<project>/<session-id>.jsonl
 //   - memory:   <state-dir>/AGENTS.md (global, merged from bundle memories) +
-//                per-project <state-dir>/sessions/<project>/AGENTS.md
+//     per-project <state-dir>/sessions/<project>/AGENTS.md
 //   - MCP:      <state-dir>/mcp.json with a top-level `mcpServers` object
 //
 // Import is deterministic and lossless: session JSONL lines are written
@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/SuperMarioYL/carrystate/internal/bundle"
@@ -49,6 +50,11 @@ func (c *Codex) Import(b *bundle.Bundle, stateDir string) (*ImportReport, error)
 	if b.Manifest.SourceHarness == "" {
 		return nil, fmt.Errorf("codex: bundle has no source harness in manifest")
 	}
+	// refuse bundles whose schema ids this adapter was not built for (a v0.2
+	// bundle needs a translator upgrade first — see SPEC.md §versioning)
+	if err := b.SchemaCompatibleForImport(bundle.SessionSchemaID, bundle.MemorySchemaID, bundle.McpSchemaID); err != nil {
+		return nil, fmt.Errorf("codex: %w", err)
+	}
 
 	r := &ImportReport{Harness: c.Name(), StateDir: stateDir}
 
@@ -74,14 +80,30 @@ func (c *Codex) Import(b *bundle.Bundle, stateDir string) (*ImportReport, error)
 			r.AddSkipped("session:"+s.ID, fmt.Sprintf("write: %v", err))
 			continue
 		}
-		// per-project memory file if this project has scoped memories
-		if md := translate.MergeMemories(b.Memories, s.Project); md != "" {
-			_ = os.WriteFile(filepath.Join(projDir, "AGENTS.md"), []byte(md), 0o644)
-		}
 		r.SessionsWritten++
 	}
 
-	// 2. global memory: <state-dir>/AGENTS.md (merged from global bundle memories)
+	// 2. per-project memories: every project with scoped memories gets its
+	// AGENTS.md next to its sessions — including projects the bundle carries no
+	// sessions for (a memory-only project still lands on the target host)
+	for _, project := range memoryProjects(b) {
+		md := translate.MergeMemories(b.Memories, project)
+		if md == "" {
+			continue
+		}
+		projDir := filepath.Join(stateDir, "sessions", safeProjectDir(project))
+		if err := os.MkdirAll(projDir, 0o755); err != nil {
+			r.AddWarning(fmt.Sprintf("mkdir %s: %v", projDir, err))
+			continue
+		}
+		if err := os.WriteFile(filepath.Join(projDir, "AGENTS.md"), []byte(md), 0o644); err != nil {
+			r.AddWarning(fmt.Sprintf("write %s AGENTS.md: %v", projDir, err))
+			continue
+		}
+		r.MemoriesWritten++
+	}
+
+	// 3. global memory: <state-dir>/AGENTS.md (merged from global bundle memories)
 	if g := translate.MergeMemories(b.Memories, ""); g != "" {
 		if err := os.WriteFile(filepath.Join(stateDir, "AGENTS.md"), []byte(g), 0o644); err != nil {
 			r.AddWarning(fmt.Sprintf("write global AGENTS.md: %v", err))
@@ -90,22 +112,39 @@ func (c *Codex) Import(b *bundle.Bundle, stateDir string) (*ImportReport, error)
 		}
 	}
 
-	// 3. MCP config: <state-dir>/mcp.json
+	// 4. MCP config: <state-dir>/mcp.json
 	if len(b.MCP.Servers) > 0 {
-		if err := writeCodexMcpConfig(stateDir, b.MCP.Servers); err != nil {
+		if err := writeCodexMcpConfig(stateDir, b.MCP.Servers, r); err != nil {
 			r.AddWarning(fmt.Sprintf("write mcp.json: %v", err))
-		} else {
-			r.McpServersWritten = len(b.MCP.Servers)
 		}
 	}
 
 	return r, nil
 }
 
+// memoryProjects returns the sorted, de-duplicated list of non-empty memory
+// project scopes in a bundle. Iterating it (not the sessions) keeps unpack
+// faithful to the bundle: a project's memories land even with zero sessions.
+func memoryProjects(b *bundle.Bundle) []string {
+	seen := map[string]bool{}
+	out := make([]string, 0, len(b.Memories))
+	for _, m := range b.Memories {
+		if m.Project == "" || seen[m.Project] {
+			continue
+		}
+		seen[m.Project] = true
+		out = append(out, m.Project)
+	}
+	sort.Strings(out)
+	return out
+}
+
 // writeCodexMcpConfig writes the MCP servers to <state-dir>/mcp.json in the
 // same {mcpServers: {...}} shape Claude Code uses, so the two harnesses can
-// share tool-call config across an airgap.
-func writeCodexMcpConfig(stateDir string, servers []bundle.McpServer) error {
+// share tool-call config across an airgap. Servers whose prefix-stripped names
+// collide are NOT silently merged: the user-scope server wins, the loser is
+// recorded as a report warning, and the report's count reflects the file.
+func writeCodexMcpConfig(stateDir string, servers []bundle.McpServer, r *ImportReport) error {
 	type stdioCfg struct {
 		Command string            `json:"command,omitempty"`
 		Args    []string          `json:"args,omitempty"`
@@ -115,18 +154,40 @@ func writeCodexMcpConfig(stateDir string, servers []bundle.McpServer) error {
 		Type string `json:"type"`
 		URL  string `json:"url"`
 	}
-	mcpServers := map[string]any{}
+	winning := map[string]bundle.McpServer{}
 	for _, s := range servers {
 		// strip the "project/" prefix Claude Code added on export so the
 		// server name round-trips to the original identifier
 		name := stripProjectPrefix(s.Name)
-		if s.Transport == "sse" || s.Transport == "http" {
-			mcpServers[name] = urlCfg{Type: s.Transport, URL: s.URL}
-		} else {
-			mcpServers[name] = stdioCfg{Command: s.Command, Args: s.Args, Env: s.Env}
+		prev, taken := winning[name]
+		switch {
+		case !taken:
+			winning[name] = s
+		case prev.Scope != "user" && s.Scope == "user":
+			// the user-scope server takes the name; the project-scope server
+			// written first is the one dropped
+			r.AddWarning(fmt.Sprintf(
+				"mcp: skipped %q (user-scope server takes the name %q)",
+				prev.Name, name))
+			winning[name] = s
+		default:
+			r.AddWarning(fmt.Sprintf(
+				"mcp: skipped %q (name %q already taken by the %s-scope server)",
+				s.Name, name, prev.Scope))
 		}
 	}
-	doc := map[string]any{"mcpServers": mcpServers}
+
+	wire := map[string]any{}
+	for name, srv := range winning {
+		if srv.Transport == "sse" || srv.Transport == "http" {
+			wire[name] = urlCfg{Type: srv.Transport, URL: srv.URL}
+		} else {
+			wire[name] = stdioCfg{Command: srv.Command, Args: srv.Args, Env: srv.Env}
+		}
+	}
+	r.McpServersWritten = len(wire)
+
+	doc := map[string]any{"mcpServers": wire}
 	data, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
 		return err

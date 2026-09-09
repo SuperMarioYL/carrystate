@@ -44,7 +44,13 @@ func (c *ClaudeCode) Export(opts ExportOptions) (*bundle.Bundle, error) {
 		return nil, fmt.Errorf("claudecode: state dir %q is not a directory", opts.StateDir)
 	}
 
-	b := bundle.New(c.Name(), "", "carrystate-0.1.0")
+	// manifest.tool_version comes from the packing binary (pack passes the
+	// CLI Version const) so it can never drift from the release tag
+	toolVersion := opts.ToolVersion
+	if toolVersion == "" {
+		toolVersion = "dev"
+	}
+	b := bundle.New(c.Name(), "", toolVersion)
 
 	// 1. sessions: <state-dir>/projects/<proj>/*.jsonl
 	projectsRoot := filepath.Join(opts.StateDir, "projects")

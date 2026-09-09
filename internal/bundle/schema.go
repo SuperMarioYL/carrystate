@@ -14,9 +14,9 @@ import (
 )
 
 // SupportedSpecVersions is the set of .csb schema versions this binary can
-// read + verify. v0.1.0 supports only "0.1"; a future "0.2" bundle would
-// require a translator step (see SPEC.md §versioning) before this binary can
-// verify it.
+// read + verify. v0.1/v0.2 binaries support only "0.1"; a future "0.2" bundle
+// would require a translator step (see SPEC.md §versioning) before this
+// binary can verify it.
 var SupportedSpecVersions = map[string]bool{
 	"0.1": true,
 }

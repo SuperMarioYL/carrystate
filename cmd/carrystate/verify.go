@@ -39,6 +39,12 @@ Example:
 				return fmt.Errorf("read bundle: %w", err)
 			}
 
+			// structural gate before the checksum comparison: unknown spec
+			// version, missing manifest fields, entries without checksums
+			if err := b.Validate(); err != nil {
+				return fmt.Errorf("verify FAILED: %w", err)
+			}
+
 			report := b.Verify()
 
 			fmt.Fprintf(cmd.OutOrStdout(), "bundle:   %s\n", bundlePath)

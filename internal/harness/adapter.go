@@ -40,17 +40,22 @@ type ExportOptions struct {
 	// Verbose turns on per-file progress logging to the returned bundle's
 	// manifest (useful for airgap audit trails).
 	Verbose bool
+	// ToolVersion identifies the packing binary in the bundle manifest
+	// (manifest.tool_version). Pack sets it from the CLI's Version const so
+	// the manifest stays in lockstep with the release tag; the empty string
+	// falls back to a per-adapter default.
+	ToolVersion string
 }
 
 // ImportReport summarizes an Import (unpack) call.
 type ImportReport struct {
-	Harness          string
-	StateDir         string
-	SessionsWritten  int
-	MemoriesWritten  int
+	Harness           string
+	StateDir          string
+	SessionsWritten   int
+	MemoriesWritten   int
 	McpServersWritten int
-	Skipped          []string // "id: reason" entries that were intentionally not written
-	Warnings         []string // non-fatal issues (e.g. target dir created, env collision)
+	Skipped           []string // "id: reason" entries that were intentionally not written
+	Warnings          []string // non-fatal issues (e.g. target dir created, env collision)
 }
 
 // AddSkipped appends a skipped-entry note.

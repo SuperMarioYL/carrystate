@@ -59,6 +59,7 @@ Example:
 				Project:       project,
 				McpConfigPath: mcpConfig,
 				Verbose:       verbose,
+				ToolVersion:   "carrystate-" + Version,
 			})
 			if err != nil {
 				return fmt.Errorf("pack: %w", err)
@@ -69,9 +70,15 @@ Example:
 			}
 
 			// emit a human-readable manifest sidecar (YAML) alongside the .csb
-			// for 合规审计 logs — airgap ops teams log this with the merkle root
-			if yml, yerr := b.ManifestYAML(); yerr == nil {
-				_ = os.WriteFile(out+".manifest.yaml", []byte(yml), 0o644)
+			// for 合规审计 logs — airgap ops teams log this with the merkle root.
+			// A missing audit sidecar must be loud, not silent.
+			sidecar := out + ".manifest.yaml"
+			yml, yerr := b.ManifestYAML()
+			if yerr == nil {
+				yerr = os.WriteFile(sidecar, []byte(yml), 0o644)
+			}
+			if yerr != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "warning: could not write manifest sidecar %s: %v\n", sidecar, yerr)
 			}
 
 			fmt.Fprintf(cmd.OutOrStdout(), "packed %s → %s\n", out, b.Manifest.SourceHarness)

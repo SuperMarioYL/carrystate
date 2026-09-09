@@ -6,6 +6,37 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-09-09
+
+### Fixed — m4 (unpack fidelity)
+- `unpack` no longer drops a project's memories when the bundle carries no
+  sessions for it: per-project `AGENTS.md` files are written for every project
+  with scoped memories, not only for projects seen in the sessions loop.
+- Per-project `AGENTS.md` write failures are now reported as import warnings
+  instead of being silently discarded.
+- MCP servers whose prefix-stripped names collide no longer overwrite each
+  other silently in `mcp.json`: the user-scope server wins, the dropped server
+  is recorded as a warning, and the report counts what actually landed.
+
+### Fixed — m5 (structural validation gate)
+- `verify` and `unpack` now run the bundle structural validation (supported
+  `manifest.spec_version`, required manifest fields, entries without
+  checksums) before the per-entry sha256 comparison, as the schema docs always
+  promised — a tampered `spec_version` such as "9.9" previously passed verify.
+- `unpack --harness codex` refuses bundles whose schema ids the adapter was
+  not built for (`SchemaCompatibleForImport`) instead of writing them blind.
+
+### Changed — m6 (pack reliability)
+- `pack` warns on stderr when the `.manifest.yaml` audit sidecar cannot be
+  written, instead of ignoring the failure.
+- `manifest.tool_version` now comes from the binary's `Version` const (single
+  source of truth) instead of a hardcoded string.
+
+### Housekeeping — m7
+- Version bumped to 0.2.0 in lockstep across all surfaces: `VERSION`,
+  `carrystate --version`, `manifest.tool_version`, and `web/site.json`
+  `meta.content_version`.
+
 ## [0.1.0] — 2026-08-06
 
 ### Added — m1 (pack)

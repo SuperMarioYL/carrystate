@@ -49,6 +49,12 @@ Example:
 				return fmt.Errorf("read bundle: %w", err)
 			}
 
+			// structural gate (unknown spec version, missing manifest fields)
+			// before the integrity check — never write a malformed bundle
+			if err := b.Validate(); err != nil {
+				return fmt.Errorf("bundle failed structural validation: %w", err)
+			}
+
 			// always verify the bundle is intact before unpacking — never write
 			// a tampered bundle into a target harness
 			report := b.Verify()

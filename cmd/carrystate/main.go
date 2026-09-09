@@ -16,7 +16,7 @@ import (
 // Version is the CarryState binary version. It is the single source of truth
 // surfaced by `carrystate --version`; release tags use the same value (read
 // from the repo-root VERSION file by publish_repo.sh).
-const Version = "0.1.0"
+const Version = "0.2.0"
 
 func main() {
 	if err := newRootCmd().Execute(); err != nil {
@@ -40,7 +40,7 @@ prove the round-trip is lossless before shipping.
 
 数据不出境 — no network, no cloud, no daemons.
 `,
-		Version: Version,
+		Version:           Version,
 		CompletionOptions: cobra.CompletionOptions{DisableDefaultCmd: true},
 	}
 	cmd.PersistentFlags().BoolP("verbose", "v", false, "verbose output")
