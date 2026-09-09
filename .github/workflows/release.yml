@@ -35,5 +35,5 @@ jobs:
         run: |
           set -euo pipefail
           ls -la dist/
-          test -f dist/checksums.txt
-          sha256sum -c dist/checksums.txt
+          # checksums.txt lists bare artifact names; verify from inside dist/
+          cd dist && sha256sum -c checksums.txt
