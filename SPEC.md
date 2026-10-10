@@ -73,7 +73,7 @@ be empty, but the key exists). A verifier rejects a bundle missing any key.
     "mcp":      "csb-mcp-servers-v1"
   },
   "entry_count": { "sessions": 1, "memories": 1, "mcp_servers": 1 },
-  "tool_version": "carrystate-0.2.0"  // the binary that packed it
+  "tool_version": "carrystate-0.3.0"  // the binary that packed it
 }
 ```
 
@@ -222,6 +222,7 @@ the byte level**, which is the v0.1 definition of behavior-equivalence.
 ## 11. Out of scope for v0.1
 
 (See `mvp_plan.md` §6 for the full list.) The bundle format itself is
-symmetric; the v0.1 *adapters* are directional (Claude Code → Codex). A
-reverse Codex → Claude Code adapter is a v0.2 adapter against the same
-`.csb` format — no spec change required, just a new `Adapter` implementation.
+symmetric; since v0.3.0 the shipped adapters are bidirectional (Claude Code ↔
+Codex) against the same `.csb` format — the reverse directions required no
+spec change, just `Adapter` implementations for each side. Future harness
+adapters (OpenCode, Grok Build, Hermes Agent) follow the same contract.

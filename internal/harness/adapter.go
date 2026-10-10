@@ -2,31 +2,33 @@
 // specific coding-agent harness's native state dir (Export → bundle.Bundle)
 // and write a bundle back out into a target harness's native layout (Import).
 //
-// v0.1 ships two directional adapters:
-//   - ClaudeCode: Export-only (reads ~/.claude → bundle)
-//   - Codex:      Import-only (bundle → writes ~/.codex)
+// v0.3.0 ships one bidirectional pair:
+//   - ClaudeCode: Export (reads ~/.claude → bundle) + Import (bundle → ~/.claude)
+//   - Codex:      Export (reads ~/.codex → bundle) + Import (bundle → ~/.codex)
 //
 // The Adapter interface is symmetric on purpose: the bundle format is
-// reversible, so a v0.2 reverse-direction adapter is just a new impl of the
-// same two methods, not a new contract. The v0.1 adapters return
-// ErrUnsupportedDirection for the direction they don't implement yet, so a
-// `carrystate pack --harness codex` call fails with a clear message rather than
-// a nil-pointer.
+// reversible, so each direction is just an impl of the same two methods, not
+// a new contract. An adapter that has not implemented a direction yet returns
+// ErrUnsupportedDirection so `carrystate pack --harness <future>` fails with a
+// clear message rather than a nil-pointer.
 package harness
 
 import (
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"sort"
 	"sync"
 
 	"github.com/SuperMarioYL/carrystate/internal/bundle"
 )
 
-// ErrUnsupportedDirection is returned by a v0.1 adapter when asked for the
-// direction it does not yet implement (e.g. ClaudeCode.Import, Codex.Export).
-// v0.2 reverse-direction adapters will remove this sentinel for their pair.
-var ErrUnsupportedDirection = errors.New("carrystate: harness adapter does not support this direction in v0.1 (reverse direction is a v0.2 adapter)")
+// ErrUnsupportedDirection is returned by an adapter when asked for the
+// direction it does not implement yet. The v0.3.0 pair (ClaudeCode, Codex) is
+// fully bidirectional; future harness adapters (OpenCode, Grok Build, Hermes
+// Agent) use this sentinel for their unimplemented side.
+var ErrUnsupportedDirection = errors.New("carrystate: harness adapter does not support this direction")
 
 // ExportOptions configures an Export (pack) call.
 type ExportOptions struct {
@@ -45,6 +47,22 @@ type ExportOptions struct {
 	// the manifest stays in lockstep with the release tag; the empty string
 	// falls back to a per-adapter default.
 	ToolVersion string
+	// WarnTo receives one-line warnings for state the adapter had to skip
+	// during Export (a malformed mcpServers entry, an unreadable memory file).
+	// Adapters must skip-and-warn, never silently drop; nil falls back to
+	// os.Stderr so a direct library caller still sees the warnings.
+	WarnTo io.Writer
+}
+
+// warnf writes one warning line to WarnTo (os.Stderr when unset). Used by
+// adapters to surface export-side skips — the pack-side analogue of the
+// ImportReport warnings unpack prints.
+func (o ExportOptions) warnf(format string, args ...any) {
+	w := o.WarnTo
+	if w == nil {
+		w = os.Stderr
+	}
+	fmt.Fprintf(w, "warning: "+format+"\n", args...)
 }
 
 // ImportReport summarizes an Import (unpack) call.
@@ -122,9 +140,8 @@ func Names() []string {
 }
 
 func init() {
-	// v0.1 ships ClaudeCode (export) and Codex (import). v0.2 adapters
-	// (OpenCode, Grok Build, Hermes Agent, reverse direction) Register
-	// themselves the same way.
+	// the bidirectional ClaudeCode <-> Codex pair. Future harness adapters
+	// (OpenCode, Grok Build, Hermes Agent) Register themselves the same way.
 	Register(&ClaudeCode{})
 	Register(&Codex{})
 }

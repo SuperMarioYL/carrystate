@@ -121,22 +121,22 @@ Scope: file migration only; no Codex process or MCP server started.
   <img src="./assets/presentation/integrations-light.svg" width="960" alt="Integrations diagram">
 </picture>
 
-CarryState 负责文件打包和确定性转换；目标运行时负责识别和恢复这些文件。当前方向是 Claude Code 导出到面向 Codex 的布局，反向接口会返回不支持的方向错误。
+CarryState 负责文件打包和确定性转换；目标运行时负责识别和恢复这些文件。自 v0.3.0 起双向支持：Claude Code 导出到面向 Codex 的布局，Codex 导出回 Claude Code 布局。
 
 | 路径 | 已实现职责 |
 | --- | --- |
-| Claude Code | export local file state |
+| Claude Code | export + import 本地文件状态 |
 | CSB archive | portable checksummed bundle |
-| Codex layout | write adapter-defined files |
+| Codex layout | write + read adapter-defined files |
 | YAML sidecar | human-readable manifest |
 
 ## 限制与后续方向
 
 - 校验值一致仅证明包内容一致，不能证明签名身份、运行时兼容性或行为等价。
 - Codex 布局是适配器约定。本示例没有启动 Codex，也没有验证当前 Codex 版本能恢复导入会话。
-- 反向迁移和记忆语义协调尚未实现。
+- 记忆语义协调尚未实现（反向迁移自 v0.3.0 起已实现）。
 
-已实现 Claude Code 导出、CSB 校验、验证、dry-run 和目标文件导入。后续方向是当前运行时兼容验证、反向迁移和更多适配器。本仓库没有实现托管服务或企业许可系统。
+已实现 Claude Code 与 Codex 的双向导出/导入、CSB 校验、验证、dry-run。后续方向是当前运行时兼容验证、记忆语义协调和更多适配器。本仓库没有实现托管服务或企业许可系统。
 
 ## 许可与贡献
 

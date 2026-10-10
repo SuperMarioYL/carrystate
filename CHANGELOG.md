@@ -6,6 +6,46 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-10-11
+
+### Fixed — m8 (pack export drops)
+- `pack` no longer silently drops state on the export side: a malformed
+  `mcpServers` entry, an unreadable project `CLAUDE.md`, or an unreadable
+  project `.mcp.json` are each skipped with a stderr warning instead of
+  vanishing from the bundle without a trace.
+- `pack --project` now also accepts the real-path form (`/Users/me/app` finds
+  the encoded `-Users-me-app` dir), and a filter that matches no project dir
+  fails fast listing the available dirs instead of exiting 0 with a
+  near-empty bundle.
+
+### Fixed — m9 (verify accepts empty content)
+- `verify` and `unpack` no longer reject bundles whose entries have empty
+  content. An empty (0-byte) `CLAUDE.md` is legitimate user state; v0.2.0
+  packed it and then failed its own verifier ("content is empty"). The
+  lossless contract is restored: what pack emits, verify accepts.
+
+### Added — m10 (reverse direction Codex → Claude Code)
+- The adapter pair is bidirectional: `carrystate pack --harness codex` reads
+  the Codex-native layout (`sessions/<project>/*.jsonl`, per-project + global
+  `AGENTS.md`, `mcp.json`) into a bundle, and `carrystate unpack --harness
+  claudecode` writes the Claude Code-native layout (`projects/<project>/*.jsonl`,
+  `CLAUDE.md` global + per-project).
+- The Claude Code user-scope MCP merge is surgical: only the `mcpServers` key
+  of `~/.claude.json` is replaced — every other top-level key (session
+  history, project state) is preserved, and a same-name replacement is
+  reported as a warning.
+
+### Housekeeping — m11
+- Version bumped to 0.3.0 in lockstep across all surfaces: `VERSION`,
+  `carrystate --version`, `manifest.tool_version`, and `web/site.json`
+  `meta.content_version`; the pack/unpack report value columns are aligned.
+
+### Commitment update
+- The v0.1.0 note "reverse direction + OpenCode/Grok Build/Hermes Agent
+  adapters are v0.2" is superseded: the reverse Codex → Claude Code adapter
+  shipped in v0.3.0 (m10). Remaining roadmap: OpenCode/Grok Build/Hermes
+  Agent adapters and LLM-based memory reconciliation.
+
 ## [0.2.0] — 2026-09-09
 
 ### Fixed — m4 (unpack fidelity)
@@ -76,3 +116,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   are v0.2.
 - OSS core is feature-complete and free forever; the on-prem enterprise license
   (¥50–200k/site/yr) buys 信创 SLA + 合规审计 + custom adapters, not features.
+
+(The reverse-direction commitment above shipped in v0.3.0 — see the [0.3.0]
+section's commitment update; the remaining harness adapters are still on the
+roadmap.)

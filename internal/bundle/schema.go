@@ -51,9 +51,6 @@ func (b *Bundle) Validate() error {
 		if e.SHA256 == "" {
 			problems = append(problems, fmt.Sprintf("sessions[%s].sha256 is empty", e.ID))
 		}
-		if e.Content == "" {
-			problems = append(problems, fmt.Sprintf("sessions[%s].content is empty", e.ID))
-		}
 	}
 	for i, e := range b.Memories {
 		if e.ID == "" {
@@ -61,9 +58,6 @@ func (b *Bundle) Validate() error {
 		}
 		if e.SHA256 == "" {
 			problems = append(problems, fmt.Sprintf("memories[%s].sha256 is empty", e.ID))
-		}
-		if e.Content == "" {
-			problems = append(problems, fmt.Sprintf("memories[%s].content is empty", e.ID))
 		}
 	}
 	for i, s := range b.MCP.Servers {

@@ -66,7 +66,7 @@ Example:
 				fmt.Fprintf(cmd.OutOrStdout(), "dry-run: bundle %s (source=%s, %s)\n",
 					in, b.Manifest.SourceHarness, report.Summary())
 				fmt.Fprintf(cmd.OutOrStdout(), "  sessions:    %d\n", b.Manifest.EntryCount.Sessions)
-				fmt.Fprintf(cmd.OutOrStdout(), "  memories:   %d\n", b.Manifest.EntryCount.Memories)
+				fmt.Fprintf(cmd.OutOrStdout(), "  memories:    %d\n", b.Manifest.EntryCount.Memories)
 				fmt.Fprintf(cmd.OutOrStdout(), "  mcp servers: %d\n", b.Manifest.EntryCount.McpServers)
 				fmt.Fprintf(cmd.OutOrStdout(), "  merkle root: %s\n", b.MerkleRoot())
 				return nil
@@ -85,7 +85,7 @@ Example:
 			fmt.Fprintf(cmd.OutOrStdout(), "unpacked %s → %s\n", in, r.Harness)
 			fmt.Fprintf(cmd.OutOrStdout(), "  state dir:      %s\n", r.StateDir)
 			fmt.Fprintf(cmd.OutOrStdout(), "  sessions written:  %d\n", r.SessionsWritten)
-			fmt.Fprintf(cmd.OutOrStdout(), "  memories written: %d\n", r.MemoriesWritten)
+			fmt.Fprintf(cmd.OutOrStdout(), "  memories written:  %d\n", r.MemoriesWritten)
 			fmt.Fprintf(cmd.OutOrStdout(), "  mcp servers:       %d\n", r.McpServersWritten)
 			if len(r.Skipped) > 0 {
 				fmt.Fprintf(cmd.OutOrStdout(), "  skipped (%d):\n", len(r.Skipped))

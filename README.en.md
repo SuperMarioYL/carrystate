@@ -121,22 +121,22 @@ All paths are explicit CLI arguments. The Claude Code project-directory decoding
   <img src="./assets/presentation/integrations-light.svg" width="960" alt="Integrations diagram">
 </picture>
 
-CarryState handles file packaging and deterministic translation. The destination runtime owns whether it recognizes and resumes those files. The supported direction is Claude Code export → Codex-oriented import; the reverse methods return unsupported-direction errors.
+CarryState handles file packaging and deterministic translation. The destination runtime owns whether it recognizes and resumes those files. Since v0.3.0 both directions are supported: Claude Code export to a Codex-oriented layout, and Codex export back into a Claude Code layout.
 
 | Route | Implemented role |
 | --- | --- |
-| Claude Code | export local file state |
+| Claude Code | export + import local file state |
 | CSB archive | portable checksummed bundle |
-| Codex layout | write adapter-defined files |
+| Codex layout | write + read adapter-defined files |
 | YAML sidecar | human-readable manifest |
 
 ## Limits and next steps
 
 - Checksum agreement establishes bundle consistency, not signer identity, runtime compatibility or behavior equivalence.
 - The Codex layout is an adapter convention. This demo does not launch Codex or verify that a current Codex release resumes the imported session.
-- Reverse migration and semantic memory reconciliation are not implemented.
+- Semantic memory reconciliation is not implemented (reverse migration shipped in v0.3.0).
 
-Implemented: Claude Code export, CSB checksums, verification, dry-run and target-file import. Next directions are current-runtime compatibility checks, reverse migration and additional harness adapters. No hosted service or enterprise license system is implemented here.
+Implemented: bidirectional Claude Code and Codex export/import, CSB checksums, verification and dry-run. Next directions are current-runtime compatibility checks, semantic memory reconciliation and additional harness adapters. No hosted service or enterprise license system is implemented here.
 
 ## License and contributions
 

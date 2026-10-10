@@ -60,6 +60,7 @@ Example:
 				McpConfigPath: mcpConfig,
 				Verbose:       verbose,
 				ToolVersion:   "carrystate-" + Version,
+				WarnTo:        cmd.ErrOrStderr(),
 			})
 			if err != nil {
 				return fmt.Errorf("pack: %w", err)
@@ -83,7 +84,7 @@ Example:
 
 			fmt.Fprintf(cmd.OutOrStdout(), "packed %s → %s\n", out, b.Manifest.SourceHarness)
 			fmt.Fprintf(cmd.OutOrStdout(), "  sessions:    %d\n", b.Manifest.EntryCount.Sessions)
-			fmt.Fprintf(cmd.OutOrStdout(), "  memories:   %d\n", b.Manifest.EntryCount.Memories)
+			fmt.Fprintf(cmd.OutOrStdout(), "  memories:    %d\n", b.Manifest.EntryCount.Memories)
 			fmt.Fprintf(cmd.OutOrStdout(), "  mcp servers: %d\n", b.Manifest.EntryCount.McpServers)
 			fmt.Fprintf(cmd.OutOrStdout(), "  merkle root: %s\n", b.MerkleRoot())
 			fmt.Fprintf(cmd.OutOrStdout(), "  fingerprint: %s\n", b.Short())
@@ -93,7 +94,7 @@ Example:
 	cmd.Flags().StringVar(&harnessName, "harness", "", "source harness id (e.g. claudecode)")
 	cmd.Flags().StringVar(&stateDir, "state-dir", "", "source harness state dir (e.g. ~/.claude)")
 	cmd.Flags().StringVarP(&out, "out", "o", "", "output .csb bundle path")
-	cmd.Flags().StringVar(&project, "project", "", "restrict to one project subdir (optional)")
+	cmd.Flags().StringVar(&project, "project", "", "restrict to one project: the encoded projects/<dir> name or the real path (optional)")
 	cmd.Flags().StringVar(&mcpConfig, "mcp-config", "", "override user-scope MCP config file (optional)")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "verbose progress")
 

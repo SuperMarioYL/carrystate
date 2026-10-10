@@ -156,3 +156,75 @@ func TestCLIVersionLockstep(t *testing.T) {
 	assert.Equal(t, "carrystate-"+Version, doc.Manifest.ToolVersion,
 		"manifest.tool_version follows the binary version")
 }
+
+// v0.2.0 regression (m9): an empty (0-byte) memory file is legitimate user
+// state — pack must produce a bundle that verify accepts and unpack restores
+// byte-identically, instead of verify rejecting the bundle pack just wrote.
+func TestCLIPackVerifyAcceptsEmptyMemory(t *testing.T) {
+	tmp := t.TempDir()
+	stateDir := filepath.Join(tmp, ".claude")
+	projDir := filepath.Join(stateDir, "projects", "-tmp-projA")
+	require.NoError(t, os.MkdirAll(projDir, 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(projDir, "s1.jsonl"),
+		[]byte("{\"type\":\"user\",\"message\":\"hello\"}\n"), 0o644))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(stateDir, "CLAUDE.md"), []byte(""), 0o644))
+
+	csb := filepath.Join(tmp, "project.csb")
+	_, _, err := runCLI(t, "pack", "--harness", "claudecode", "--state-dir", stateDir, "--out", csb)
+	require.NoError(t, err)
+
+	out, _, err := runCLI(t, "verify", "--bundle", csb)
+	require.NoError(t, err, "verify must accept what pack emits, empty content included")
+	assert.Contains(t, out, "bundle is intact")
+
+	target := filepath.Join(tmp, "codex")
+	_, _, err = runCLI(t, "unpack", "--harness", "codex", "--in", csb, "--state-dir", target)
+	require.NoError(t, err)
+
+	// the empty memory survives the round trip (merge adds the provenance
+	// header by design, so content-stable rather than byte-identical here)
+	written, err := os.ReadFile(filepath.Join(target, "AGENTS.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(written), "<!-- from", "the empty memory still lands with provenance")
+}
+
+// v0.2.0 papercut (m8): a --project filter that matches nothing used to exit 0
+// with a near-empty bundle; now it fails fast naming the available dirs.
+func TestCLIPackProjectNoMatchFailsFast(t *testing.T) {
+	tmp := t.TempDir()
+	stateDir := writeCLIFixture(t)
+	csb := filepath.Join(tmp, "project.csb")
+
+	_, _, err := runCLI(t, "pack", "--harness", "claudecode", "--state-dir", stateDir,
+		"--project", "-tmp-nope", "--out", csb)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "matches no dir")
+	_, statErr := os.Stat(csb)
+	assert.True(t, os.IsNotExist(statErr), "no bundle is written for a failed pack")
+}
+
+// m8: --project also accepts the real-path form, which v0.2.0 silently
+// mismatched against the encoded projects/<dir> name.
+func TestCLIPackProjectRealPathForm(t *testing.T) {
+	tmp := t.TempDir()
+	home := t.TempDir()
+	stateDir := filepath.Join(home, ".claude")
+	// encoded name "-tmp-projA" encodes the real path "/tmp/projA" — but the
+	// decode is lossy, so build a fixture whose encoded name decodes cleanly:
+	// real dir <tmp>/projA, encoded name "-<tmp-segments>-projA"
+	realProj := filepath.Join(home, "projA")
+	encoded := "-" + strings.ReplaceAll(strings.TrimPrefix(realProj, "/"), "/", "-")
+	projDir := filepath.Join(stateDir, "projects", encoded)
+	require.NoError(t, os.MkdirAll(projDir, 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(projDir, "s1.jsonl"),
+		[]byte("{\"type\":\"user\",\"message\":\"hello\"}\n"), 0o644))
+
+	csb := filepath.Join(tmp, "project.csb")
+	out, _, err := runCLI(t, "pack", "--harness", "claudecode", "--state-dir", stateDir,
+		"--project", realProj, "--out", csb)
+	require.NoError(t, err)
+	assert.Contains(t, out, "sessions:    1", "the real-path form finds the encoded project dir")
+}

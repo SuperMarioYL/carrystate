@@ -9,7 +9,7 @@
     "toggle": true
   },
   "meta": {
-    "content_version": "v0.2.0",
+    "content_version": "v0.3.0",
     "visual_style": "neon-particle",
     "demo_source": "docs/demo-results.json"
   },

@@ -1,6 +1,7 @@
 package harness
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -177,16 +178,21 @@ func TestLookupUnknownHarnessErrors(t *testing.T) {
 	assert.Contains(t, err.Error(), "known:")
 }
 
-func TestClaudeCodeImportUnsupported(t *testing.T) {
+// The v0.2.0 directional sentinel tests flipped with m10: both directions are
+// implemented since v0.3.0, so these assert the adapters' argument validation
+// instead of ErrUnsupportedDirection.
+func TestClaudeCodeImportRejectsEmptyStateDir(t *testing.T) {
 	c := &ClaudeCode{}
-	_, err := c.Import(nil, "/tmp")
-	assert.ErrorIs(t, err, ErrUnsupportedDirection)
+	_, err := c.Import(nil, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "state-dir is required")
 }
 
-func TestCodexExportUnsupported(t *testing.T) {
+func TestCodexExportRejectsEmptyStateDir(t *testing.T) {
 	c := &Codex{}
-	_, err := c.Export(ExportOptions{})
-	assert.ErrorIs(t, err, ErrUnsupportedDirection)
+	_, err := c.Export(ExportOptions{StateDir: ""})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "state-dir is required")
 }
 
 func TestNamesIncludesV01Adapters(t *testing.T) {
@@ -292,4 +298,202 @@ func TestExportToolVersionFromOptions(t *testing.T) {
 	b2, err := c.Export(ExportOptions{StateDir: stateDir})
 	require.NoError(t, err)
 	assert.Equal(t, "dev", b2.Manifest.ToolVersion)
+}
+
+// --- v0.3.0 — m8: pack surfaces every silently-dropped entry --------------------
+
+// A malformed mcpServers entry must not vanish silently: the export keeps the
+// parseable servers and names every skipped one on WarnTo (v0.2.0 dropped such
+// entries with no trace, so pack's server count quietly omitted them).
+func TestClaudeCodeExportWarnsOnMalformedMcpEntry(t *testing.T) {
+	stateDir, homeDir, _ := writeFixture(t)
+	require.NoError(t, os.WriteFile(
+		filepath.Join(homeDir, ".claude.json"),
+		[]byte(`{"mcpServers":{"filesystem":{"command":"npx"},"broken":"not-an-object"}}`),
+		0o644))
+
+	var warnTo bytes.Buffer
+	b, err := (&ClaudeCode{}).Export(ExportOptions{StateDir: stateDir, WarnTo: &warnTo})
+	require.NoError(t, err, "one malformed entry must not fail the whole export")
+
+	require.Len(t, b.MCP.Servers, 2, "only the parseable servers (user filesystem + project context7) are packed")
+	for _, s := range b.MCP.Servers {
+		assert.NotEqual(t, "broken", s.Name)
+	}
+	assert.Contains(t, warnTo.String(), "broken", "the skipped entry is named in a warning")
+}
+
+// --project must accept the real-path form ("/" encoded to "-"), not only the
+// encoded projects/<dir> name (v0.2.0 silently matched nothing for the natural
+// form and packed a near-empty bundle with exit 0).
+func TestClaudeCodeExportProjectRealPathForm(t *testing.T) {
+	stateDir, _, encodedProj := writeFixture(t)
+	realPath := decodeClaudeProject(encodedProj)
+	require.NotEqual(t, encodedProj, realPath)
+
+	b, err := (&ClaudeCode{}).Export(ExportOptions{StateDir: stateDir, Project: realPath})
+	require.NoError(t, err)
+	require.Len(t, b.Sessions, 1, "the real-path form finds the encoded project dir")
+}
+
+// A --project filter that matches no project dir must fail fast with the
+// available names instead of packing a silently-empty bundle.
+func TestClaudeCodeExportProjectNoMatchFailsFast(t *testing.T) {
+	stateDir, _, encodedProj := writeFixture(t)
+
+	_, err := (&ClaudeCode{}).Export(ExportOptions{StateDir: stateDir, Project: "-tmp-nope"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "matches no dir")
+	assert.Contains(t, err.Error(), encodedProj, "the error lists the available project dirs")
+}
+
+// --- v0.3.0 — m10: reverse direction (Codex -> Claude Code) ---------------------
+
+// writeCodexFixture builds a minimal ~/.codex tree (the layout Codex.Import
+// writes) and returns (stateDir, codexHome). mcp.json carries one flat
+// user-scope server.
+func writeCodexFixture(t *testing.T) (stateDir string) {
+	t.Helper()
+	home := t.TempDir()
+	stateDir = filepath.Join(home, ".codex")
+
+	projDir := filepath.Join(stateDir, "sessions", "-tmp-projB")
+	require.NoError(t, os.MkdirAll(projDir, 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(projDir, "s2.jsonl"),
+		[]byte("{\"type\":\"user\",\"message\":\"from codex\"}\n"), 0o644))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(projDir, "AGENTS.md"),
+		[]byte("<!-- from /tmp/only/CLAUDE.md -->\n# Project B\nUse Go.\n"), 0o644))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(stateDir, "AGENTS.md"),
+		[]byte("<!-- from /home/u/.claude/CLAUDE.md -->\n# Global\nUse Go.\n"), 0o644))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(stateDir, "mcp.json"),
+		[]byte(`{"mcpServers":{"filesystem":{"command":"npx","args":["-y","x"]}}}`),
+		0o644))
+	return stateDir
+}
+
+// Codex.Export reads the Codex-native layout into a verifiable bundle.
+func TestCodexExportReadsFixture(t *testing.T) {
+	stateDir := writeCodexFixture(t)
+
+	b, err := (&Codex{}).Export(ExportOptions{StateDir: stateDir})
+	require.NoError(t, err)
+
+	assert.Equal(t, "codex", b.Manifest.SourceHarness)
+	assert.Equal(t, "0.1", b.Manifest.SpecVersion)
+	require.Len(t, b.Sessions, 1)
+	assert.Equal(t, "s2", b.Sessions[0].ID)
+	assert.Equal(t, "-tmp-projB", b.Sessions[0].Project)
+
+	require.Len(t, b.Memories, 2, "global + project AGENTS.md")
+	scopes := map[string]string{}
+	for _, m := range b.Memories {
+		scopes[m.Project] = m.ID
+	}
+	assert.Equal(t, "global:AGENTS.md", scopes[""])
+	assert.Equal(t, "project:-tmp-projB:AGENTS.md", scopes["-tmp-projB"])
+
+	require.Len(t, b.MCP.Servers, 1)
+	assert.Equal(t, "filesystem", b.MCP.Servers[0].Name)
+	assert.Equal(t, "user", b.MCP.Servers[0].Scope)
+
+	assert.True(t, b.Verify().Pass(), b.Verify().Summary())
+}
+
+// The full reverse round trip: a Codex state dir exports to a bundle and the
+// Claude Code adapter imports it byte-identically, with MCP merged into an
+// existing user config without touching unrelated keys.
+func TestReverseRoundTripCodexToClaudeCode(t *testing.T) {
+	codexDir := writeCodexFixture(t)
+
+	// 1. pack (Codex → bundle)
+	b, err := (&Codex{}).Export(ExportOptions{StateDir: codexDir})
+	require.NoError(t, err)
+	b.Finalize()
+
+	// 2. verify the bundle is intact
+	rep := b.Verify()
+	require.True(t, rep.Pass(), rep.Summary())
+
+	// 3. unpack (bundle → Claude Code), into a real ~/.claude-shaped home with
+	// a pre-existing user config holding an unrelated key + existing server
+	home := t.TempDir()
+	target := filepath.Join(home, ".claude")
+	require.NoError(t, os.WriteFile(
+		filepath.Join(home, ".claude.json"),
+		[]byte(`{"userID":"abc123","mcpServers":{"existing":{"command":"keep-me"}}}`),
+		0o644))
+	r, err := (&ClaudeCode{}).Import(b, target)
+	require.NoError(t, err)
+	assert.Equal(t, 1, r.SessionsWritten)
+	assert.Equal(t, 2, r.MemoriesWritten)
+	assert.Equal(t, 1, r.McpServersWritten, "bundle server added; existing server preserved")
+
+	// 4. session content is byte-identical under the encoded project dir
+	src := filepath.Join(codexDir, "sessions", "-tmp-projB", "s2.jsonl")
+	dst := filepath.Join(target, "projects", "-tmp-projB", "s2.jsonl")
+	srcBytes, _ := os.ReadFile(src)
+	dstBytes, _ := os.ReadFile(dst)
+	assert.Equal(t, srcBytes, dstBytes, "session must round-trip byte-identical")
+
+	// 5. memories land as global + per-project CLAUDE.md
+	projMd, err := os.ReadFile(filepath.Join(target, "projects", "-tmp-projB", "CLAUDE.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(projMd), "# Project B")
+	globalMd, err := os.ReadFile(filepath.Join(target, "CLAUDE.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(globalMd), "# Global")
+
+	// 6. the user config merge is surgical: unrelated key + existing server
+	// preserved, bundle server added
+	raw, err := os.ReadFile(filepath.Join(home, ".claude.json"))
+	require.NoError(t, err)
+	var doc struct {
+		UserID     string `json:"userID"`
+		McpServers map[string]struct {
+			Command string `json:"command"`
+		} `json:"mcpServers"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &doc))
+	assert.Equal(t, "abc123", doc.UserID, "unrelated top-level keys are preserved verbatim")
+	assert.Equal(t, "keep-me", doc.McpServers["existing"].Command, "existing servers survive the merge")
+	assert.Equal(t, "npx", doc.McpServers["filesystem"].Command, "bundle server is merged in")
+}
+
+// A bundle server whose name collides with an existing config entry replaces
+// it — loudly (warning) — while unrelated keys stay untouched.
+func TestClaudeCodeImportMcpMergeReplacesWithWarning(t *testing.T) {
+	home := t.TempDir()
+	target := filepath.Join(home, ".claude")
+	require.NoError(t, os.WriteFile(
+		filepath.Join(home, ".claude.json"),
+		[]byte(`{"userID":"keep","mcpServers":{"shared":{"command":"old"}}}`),
+		0o644))
+
+	b := bundle.New("codex", "claudecode", "test")
+	b.AppendMcpServer(bundle.McpServer{
+		Name: "shared", Transport: "stdio", Command: "new", Scope: "user",
+	})
+	b.Finalize()
+
+	r, err := (&ClaudeCode{}).Import(b, target)
+	require.NoError(t, err)
+	assert.Equal(t, 1, r.McpServersWritten)
+	require.Len(t, r.Warnings, 1)
+	assert.Contains(t, r.Warnings[0], "replaced existing server")
+
+	raw, err := os.ReadFile(filepath.Join(home, ".claude.json"))
+	require.NoError(t, err)
+	var doc struct {
+		UserID     string `json:"userID"`
+		McpServers map[string]struct {
+			Command string `json:"command"`
+		} `json:"mcpServers"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &doc))
+	assert.Equal(t, "keep", doc.UserID)
+	assert.Equal(t, "new", doc.McpServers["shared"].Command, "the bundle server wins the colliding name")
 }
